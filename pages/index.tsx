@@ -1,9 +1,9 @@
 import {
   Alert,
-  AlertIcon,
+  AlertDescription,
   Box,
   Button,
-  chakra,
+  Code,
   Container,
   FormControl,
   FormLabel,
@@ -12,14 +12,15 @@ import {
   Select,
   Stack,
   Text,
+  chakra,
 } from '@chakra-ui/react'
+import { JWTPayload, decodeJwt } from 'jose'
 import { GetServerSideProps } from 'next'
 import Head from 'next/head'
 import Script from 'next/script'
 import { FormEventHandler, useState } from 'react'
 import { getCybersourceSession } from '../cybersource/session'
 import useMicroform from '../hooks/useMicroform'
-
 type Props = {
   sessionId: string
 }
@@ -28,8 +29,28 @@ const months = Array.from({ length: 12 }).map((_, i) => `${i + 1}`.padStart(2, '
 const currentYear = new Date().getFullYear()
 const years = Array.from({ length: 21 }).map((_, i) => `${i + currentYear}`)
 
+type Token = {
+  token: string
+  decodedToken: JWTPayload
+}
+
+const useToken = (): [Token, (token: string | undefined) => void] => {
+  const [token, setToken] = useState<Token>()
+
+  return [
+    token,
+    (token: string) => {
+      if (!token) {
+        setToken(undefined)
+      }
+      const decodedToken = decodeJwt(token)
+      setToken({ token, decodedToken })
+    },
+  ]
+}
+
 export default function TokenGenerator({ sessionId }: Props) {
-  const [token, setToken] = useState<string>()
+  const [tokenInfo, setToken] = useToken()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [error, setError] = useState<any>()
 
@@ -68,7 +89,7 @@ export default function TokenGenerator({ sessionId }: Props) {
         <Head>
           <title>Cybersource token generator</title>
         </Head>
-        <Container maxW="lg" pt={10}>
+        <Container maxW="xl" pt={10}>
           <Heading as="h1" size="lg">
             Cybersource token generator
           </Heading>
@@ -101,15 +122,22 @@ export default function TokenGenerator({ sessionId }: Props) {
               <Button type="submit">Submit</Button>
             </Stack>
           </chakra.form>
-          {token && (
+          {tokenInfo && (
             <Alert status="success">
-              <AlertIcon />
-              <Text overflowWrap="anywhere">{token}</Text>
+              <AlertDescription w="100%">
+                <Text>Token:</Text>
+                <Code bg="black" color="white" overflowWrap="anywhere">
+                  {tokenInfo.token}
+                </Code>
+                <Text>Decoded token:</Text>
+                <Code bg="black" color="white" whiteSpace="pre-wrap" overflowWrap="anywhere">
+                  {JSON.stringify(tokenInfo.decodedToken, null, 2)}
+                </Code>
+              </AlertDescription>
             </Alert>
           )}
           {error && (
             <Alert status="error">
-              <AlertIcon />
               <Text overflowWrap="anywhere">{error}</Text>
             </Alert>
           )}
